@@ -8,7 +8,7 @@ import { CompanyForm } from "@/components/CompanyForm";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { StageBadge, Initials } from "@/components/Badges";
 import { ACTIVITY_LABELS, formatDate, todayISO } from "@/lib/labels";
-import { addTask, deleteCompany, deleteContact, saveContact, toggleTask, updateCompany } from "../actions";
+import { addTask, deleteCompany, deleteContact, saveContact, toggleTask, updateCompany, updateDeal } from "../actions";
 
 export default async function CompanyPage({
   params,
@@ -177,15 +177,75 @@ export default async function CompanyPage({
           <section className="card">
             <h2 className="border-b border-stone-100 px-4 py-3 text-sm font-semibold">Deals</h2>
             <ul className="divide-y divide-stone-100">
-              {((deals ?? []) as Deal[]).map((d) => (
-                <li key={d.id} className="flex items-center justify-between gap-2 px-4 py-3 text-sm">
-                  <span>{d.title}</span>
-                  <span className="flex items-center gap-2">
-                    {d.value != null && <span className="text-stone-600">{Number(d.value).toLocaleString("da-DK")} kr.</span>}
-                    <StageBadge stage={stageById.get(d.stage_id)} />
-                  </span>
-                </li>
-              ))}
+              {((deals ?? []) as Deal[]).map((d) => {
+                const stage = stageById.get(d.stage_id);
+                return (
+                  <li key={d.id} className="px-4 py-3 text-sm">
+                    <details>
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
+                        <span className="min-w-0 truncate">{d.title}</span>
+                        <span className="flex shrink-0 items-center gap-2">
+                          {d.value != null && (
+                            <span className="text-stone-600">{Number(d.value).toLocaleString("da-DK")} kr.</span>
+                          )}
+                          <StageBadge stage={stage} />
+                          <Pencil size={13} className="text-stone-400" />
+                        </span>
+                      </summary>
+                      <form action={updateDeal} className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <input type="hidden" name="id" value={d.id} />
+                        <input type="hidden" name="company_id" value={c.id} />
+                        <label className="sm:col-span-2">
+                          <span className="label">Titel</span>
+                          <input name="title" defaultValue={d.title} className="input" />
+                        </label>
+                        <label>
+                          <span className="label">Fase</span>
+                          <select name="stage_id" defaultValue={d.stage_id} className="input">
+                            {stages.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span className="label">Ansvarlig</span>
+                          <select name="owner_id" defaultValue={d.owner_id ?? ""} className="input">
+                            <option value="">Ingen</option>
+                            {members.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span className="label">Dealværdi (kr.)</span>
+                          <input name="value" inputMode="decimal" defaultValue={d.value ?? ""} className="input" />
+                        </label>
+                        <label>
+                          <span className="label">Sandsynlighed (%)</span>
+                          <input
+                            name="probability"
+                            inputMode="numeric"
+                            defaultValue={d.probability ?? ""}
+                            placeholder={`${stage?.default_probability ?? 0} (fasens standard)`}
+                            className="input"
+                          />
+                        </label>
+                        <label>
+                          <span className="label">Forventet lukkedato</span>
+                          <input type="date" name="expected_close_date" defaultValue={d.expected_close_date ?? ""} className="input" />
+                        </label>
+                        <div className="flex items-end">
+                          <button className="btn-primary">Gem deal</button>
+                        </div>
+                      </form>
+                    </details>
+                  </li>
+                );
+              })}
               {(deals ?? []).length === 0 && <li className="px-4 py-3 text-sm text-stone-500">Ingen deals.</li>}
             </ul>
           </section>

@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, Upload, Settings, LogOut } from "lucide-react";
+import { Building2, KanbanSquare, Upload, Settings, LogOut } from "lucide-react";
 
 const ITEMS = [
+  { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
   { href: "/virksomheder", label: "Kontakter", icon: Building2 },
   { href: "/import", label: "Import", icon: Upload },
   { href: "/indstillinger", label: "Indstillinger", icon: Settings },
@@ -19,7 +20,7 @@ export function Nav({ initials }: { initials: string }) {
       {/* Top (alle skærme) */}
       <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
-          <Link href="/virksomheder" className="font-semibold tracking-tight">
+          <Link href="/pipeline" className="font-semibold tracking-tight">
             Zusammen <span className="font-normal text-stone-400">CRM</span>
           </Link>
           <nav className="hidden gap-1 md:flex">

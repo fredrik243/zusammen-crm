@@ -113,3 +113,44 @@ export async function toggleTask(f: FormData) {
   revalidatePath(`/virksomheder/${String(f.get("company_id"))}`);
   revalidatePath("/virksomheder");
 }
+
+export async function updateDeal(f: FormData) {
+  const supabase = await createClient();
+  const id = String(f.get("id"));
+  const company_id = String(f.get("company_id"));
+  const num = (k: string) => {
+    const v = str(f, k);
+    if (v == null) return null;
+    const t = v.replace(/\s|kr\.?/gi, "");
+    // Dansk format: "15.000" eller "15.000,50"; ellers almindeligt tal som "15000.5"
+    const n = Number(
+      t.includes(",") || /^\d{1,3}(\.\d{3})+$/.test(t) ? t.replace(/\./g, "").replace(",", ".") : t,
+    );
+    return Number.isFinite(n) ? n : null;
+  };
+  const probability = num("probability");
+  await supabase
+    .from("deals")
+    .update({
+      title: str(f, "title") ?? undefined,
+      value: num("value"),
+      probability: probability == null ? null : Math.max(0, Math.min(100, Math.round(probability))),
+      expected_close_date: str(f, "expected_close_date"),
+      owner_id: str(f, "owner_id"),
+    })
+    .eq("id", id);
+
+  const stageId = str(f, "stage_id");
+  const { data: deal } = await supabase.from("deals").select("stage_id").eq("id", id).single();
+  if (stageId && deal && deal.stage_id !== stageId) {
+    const { data: last } = await supabase
+      .from("deals")
+      .select("position")
+      .eq("stage_id", stageId)
+      .order("position", { ascending: false })
+      .limit(1);
+    await supabase.rpc("move_deal", { p_deal: id, p_stage: stageId, p_position: (last?.[0]?.position ?? 0) + 1 });
+  }
+  revalidatePath(`/virksomheder/${company_id}`);
+  revalidatePath("/pipeline");
+}
