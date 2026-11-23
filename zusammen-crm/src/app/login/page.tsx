@@ -24,10 +24,13 @@ function LoginForm() {
     });
     if (error) {
       setState("error");
+      const m = error.message.toLowerCase();
       setMessage(
-        error.message.includes("Signups not allowed")
+        m.includes("signups not allowed")
           ? "Den e-mail har ikke adgang. Bed om en invitation."
-          : "Det gik ikke at sende linket. Prøv igen om lidt.",
+          : m.includes("rate limit") || error.status === 429
+            ? "Der er sendt for mange login-mails på kort tid. Vent en time, og prøv igen én gang."
+            : `Det gik ikke at sende linket (${error.message}).`,
       );
     } else setState("sent");
   }

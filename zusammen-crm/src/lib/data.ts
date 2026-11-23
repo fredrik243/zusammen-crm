@@ -68,7 +68,7 @@ export async function getSession() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   if (!data.user) redirect("/login");
-  const { data: members } = await supabase.from("team_members").select("*").order("name");
+  const { data: members, error: membersError } = await supabase.from("team_members").select("*").order("name");
   const list = (members ?? []) as Member[];
   let me = list.find((m) => m.user_id === data.user!.id) ?? null;
 
@@ -80,7 +80,7 @@ export async function getSession() {
       me = { ...byEmail, user_id: data.user.id };
     }
   }
-  return { supabase, user: data.user, members: list, me };
+  return { supabase, user: data.user, members: list, me, membersError: membersError?.message ?? null };
 }
 
 export async function getLookups() {
