@@ -1,0 +1,326 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import {
+  ArrowLeft, Ban, Globe, Mail, Phone, Link2, Pencil, Plus, Trash2, Check, RotateCcw,
+} from "lucide-react";
+import { getLookups, getSession, type Activity, type Company, type Contact, type Deal, type Task } from "@/lib/data";
+import { CompanyForm } from "@/components/CompanyForm";
+import { ConfirmButton } from "@/components/ConfirmButton";
+import { StageBadge, Initials } from "@/components/Badges";
+import { ACTIVITY_LABELS, formatDate, todayISO } from "@/lib/labels";
+import { addTask, deleteCompany, deleteContact, saveContact, toggleTask, updateCompany } from "../actions";
+
+export default async function CompanyPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ rediger?: string }>;
+}) {
+  const { id } = await params;
+  const { rediger } = await searchParams;
+  const { supabase, me } = await getSession();
+  const { categories, stages, members } = await getLookups();
+
+  const [{ data: company }, { data: contacts }, { data: deals }, { data: tasks }, { data: activities }] =
+    await Promise.all([
+      supabase.from("companies").select("*").eq("id", id).maybeSingle(),
+      supabase.from("contacts").select("*").eq("company_id", id).order("created_at"),
+      supabase.from("deals").select("*").eq("company_id", id).order("created_at"),
+      supabase.from("tasks").select("*").eq("company_id", id).order("due_date", { nullsFirst: false }),
+      supabase.from("activities").select("*").eq("company_id", id).order("occurred_at", { ascending: false, nullsFirst: false }),
+    ]);
+  if (!company) notFound();
+  const c = company as Company;
+
+  const memberById = new Map(members.map((m) => [m.id, m]));
+  const stageById = new Map(stages.map((s) => [s.id, s]));
+  const category = categories.find((x) => x.id === c.category_id)?.name;
+  const owner = memberById.get(c.owner_id ?? "");
+  const today = todayISO();
+  const openTasks = ((tasks ?? []) as Task[]).filter((t) => t.status === "open");
+  const doneTasks = ((tasks ?? []) as Task[]).filter((t) => t.status === "done");
+  const people = (contacts ?? []) as Contact[];
+  const contactById = new Map(people.map((p) => [p.id, p]));
+
+  if (rediger) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4">
+        <h1 className="text-xl font-semibold">Redigér {c.name}</h1>
+        <div className="card p-4 md:p-6">
+          <CompanyForm
+            action={updateCompany}
+            company={c}
+            categories={categories}
+            members={members}
+            cancelHref={`/virksomheder/${c.id}`}
+          />
+        </div>
+        <form action={deleteCompany} className="text-right">
+          <input type="hidden" name="id" value={c.id} />
+          <ConfirmButton
+            message={`Slet ${c.name} med alle personer, deals, opgaver og aktiviteter? Det kan ikke fortrydes.`}
+            className="btn-ghost text-red-700"
+          >
+            <Trash2 size={16} /> Slet virksomhed
+          </ConfirmButton>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <Link href="/virksomheder" className="inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-800">
+        <ArrowLeft size={14} /> Kontaktbank
+      </Link>
+
+      {/* Hoved */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">{c.name}</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-stone-500">
+            {category && <span>{category}</span>}
+            <span className="flex items-center gap-1.5">
+              <Initials text={owner?.initials} /> {owner?.name ?? "Ingen ansvarlig"}
+            </span>
+            {c.website && (
+              <a href={c.website} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-accent">
+                <Globe size={14} /> {c.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+              </a>
+            )}
+            {c.general_email && (
+              <span className="flex items-center gap-1">
+                <Mail size={14} />
+                {c.general_email.split(",").map((e, i) => (
+                  <a key={i} href={`mailto:${e.trim()}`} className="hover:text-accent">
+                    {e.trim()}
+                    {i < c.general_email!.split(",").length - 1 ? ", " : ""}
+                  </a>
+                ))}
+              </span>
+            )}
+          </div>
+        </div>
+        <Link href={`/virksomheder/${c.id}?rediger=1`} className="btn-secondary">
+          <Pencil size={14} /> Redigér
+        </Link>
+      </div>
+
+      {c.do_not_contact && (
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <Ban size={18} className="mt-0.5 shrink-0" />
+          <div>
+            <div className="font-medium">Kontakt ikke igen</div>
+            {c.do_not_contact_reason && <div className="text-red-700">{c.do_not_contact_reason}</div>}
+          </div>
+        </div>
+      )}
+
+      {c.notes && <p className="card whitespace-pre-wrap p-4 text-sm text-stone-700">{c.notes}</p>}
+
+      <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+        <div className="space-y-5">
+          {/* Personer */}
+          <section className="card">
+            <h2 className="border-b border-stone-100 px-4 py-3 text-sm font-semibold">Personer</h2>
+            <ul className="divide-y divide-stone-100">
+              {people.map((p) => (
+                <li key={p.id} className="px-4 py-3">
+                  <details className="group">
+                    <summary className="flex cursor-pointer list-none items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-medium">{p.name}</div>
+                        {p.title && <div className="text-xs text-stone-500">{p.title}</div>}
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm">
+                          {p.email && (
+                            <a href={`mailto:${p.email}`} className="flex items-center gap-1 text-accent">
+                              <Mail size={13} /> {p.email}
+                            </a>
+                          )}
+                          {p.phone && (
+                            <a href={`tel:${p.phone}`} className="flex items-center gap-1 text-accent">
+                              <Phone size={13} /> {p.phone}
+                            </a>
+                          )}
+                          {p.linkedin_url && (
+                            <a href={p.linkedin_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-accent">
+                              <Link2 size={13} /> LinkedIn
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <Pencil size={14} className="mt-1 shrink-0 text-stone-400 group-open:text-accent" />
+                    </summary>
+                    <ContactForm companyId={c.id} contact={p} />
+                    <form action={deleteContact} className="mt-2">
+                      <input type="hidden" name="id" value={p.id} />
+                      <input type="hidden" name="company_id" value={c.id} />
+                      <ConfirmButton message={`Slet ${p.name}?`} className="btn-ghost px-0 text-xs text-red-700">
+                        <Trash2 size={13} /> Slet person
+                      </ConfirmButton>
+                    </form>
+                  </details>
+                </li>
+              ))}
+              {people.length === 0 && <li className="px-4 py-3 text-sm text-stone-500">Ingen personer endnu.</li>}
+            </ul>
+            <details className="border-t border-stone-100 px-4 py-3">
+              <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-medium text-accent">
+                <Plus size={15} /> Tilføj person
+              </summary>
+              <ContactForm companyId={c.id} />
+            </details>
+          </section>
+
+          {/* Deals */}
+          <section className="card">
+            <h2 className="border-b border-stone-100 px-4 py-3 text-sm font-semibold">Deals</h2>
+            <ul className="divide-y divide-stone-100">
+              {((deals ?? []) as Deal[]).map((d) => (
+                <li key={d.id} className="flex items-center justify-between gap-2 px-4 py-3 text-sm">
+                  <span>{d.title}</span>
+                  <span className="flex items-center gap-2">
+                    {d.value != null && <span className="text-stone-600">{Number(d.value).toLocaleString("da-DK")} kr.</span>}
+                    <StageBadge stage={stageById.get(d.stage_id)} />
+                  </span>
+                </li>
+              ))}
+              {(deals ?? []).length === 0 && <li className="px-4 py-3 text-sm text-stone-500">Ingen deals.</li>}
+            </ul>
+          </section>
+        </div>
+
+        <div className="space-y-5">
+          {/* Opgaver */}
+          <section className="card">
+            <h2 className="border-b border-stone-100 px-4 py-3 text-sm font-semibold">Opgaver</h2>
+            <ul className="divide-y divide-stone-100">
+              {openTasks.map((t) => (
+                <TaskRow key={t.id} t={t} companyId={c.id} today={today} initials={memberById.get(t.assignee_id ?? "")?.initials} />
+              ))}
+              {openTasks.length === 0 && !c.do_not_contact && (
+                <li className="px-4 py-3 text-sm text-amber-800">Intet planlagt næste skridt.</li>
+              )}
+            </ul>
+            <details className="border-t border-stone-100 px-4 py-3">
+              <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-medium text-accent">
+                <Plus size={15} /> Ny opgave
+              </summary>
+              <form action={addTask} className="mt-3 space-y-2">
+                <input type="hidden" name="company_id" value={c.id} />
+                <input type="hidden" name="deal_id" value={(deals ?? [])[0]?.id ?? ""} />
+                <input name="title" required className="input" placeholder="Hvad skal der ske?" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="date" name="due_date" className="input" />
+                  <select name="assignee_id" defaultValue={c.owner_id ?? me?.id ?? ""} className="input">
+                    <option value="">Ingen</option>
+                    {members.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button className="btn-primary">Tilføj opgave</button>
+              </form>
+            </details>
+            {doneTasks.length > 0 && (
+              <details className="border-t border-stone-100 px-4 py-3">
+                <summary className="cursor-pointer list-none text-xs text-stone-500">{doneTasks.length} udførte opgaver</summary>
+                <ul className="mt-2 divide-y divide-stone-100">
+                  {doneTasks.map((t) => (
+                    <TaskRow key={t.id} t={t} companyId={c.id} today={today} initials={memberById.get(t.assignee_id ?? "")?.initials} />
+                  ))}
+                </ul>
+              </details>
+            )}
+          </section>
+
+          {/* Tidslinje */}
+          <section className="card">
+            <h2 className="border-b border-stone-100 px-4 py-3 text-sm font-semibold">Tidslinje</h2>
+            <ol className="space-y-0 px-4 py-3">
+              {((activities ?? []) as Activity[]).map((a) => (
+                <li key={a.id} className="relative border-l border-stone-200 pb-4 pl-4 last:pb-0">
+                  <span className="absolute -left-[4.5px] top-1.5 h-2 w-2 rounded-full bg-accent" />
+                  <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                    <span className="font-medium">
+                      {a.type === "stage_changed"
+                        ? `Flyttet til ${stageById.get(a.to_stage_id ?? "")?.name ?? "?"}`
+                        : ACTIVITY_LABELS[a.type]}
+                    </span>
+                    <span className={`text-xs ${a.occurred_at ? "text-stone-500" : "italic text-stone-400"}`}>
+                      {formatDate(a.occurred_at)}
+                    </span>
+                    {memberById.get(a.member_id ?? "") && (
+                      <span className="text-xs text-stone-400">· {memberById.get(a.member_id!)!.initials}</span>
+                    )}
+                    {a.contact_id && contactById.get(a.contact_id) && (
+                      <span className="text-xs text-stone-400">· {contactById.get(a.contact_id)!.name}</span>
+                    )}
+                  </div>
+                  {a.note && <p className="mt-0.5 text-xs text-stone-500">{a.note}</p>}
+                  {a.source.startsWith("import") && (
+                    <span className="mt-1 inline-block rounded bg-stone-100 px-1.5 text-[10px] text-stone-500">
+                      {a.source === "import_status" ? "udledt af status ved import" : "fra import"}
+                    </span>
+                  )}
+                </li>
+              ))}
+              {(activities ?? []).length === 0 && <li className="text-sm text-stone-500">Ingen aktiviteter endnu.</li>}
+            </ol>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TaskRow({ t, companyId, today, initials }: { t: Task; companyId: string; today: string; initials?: string }) {
+  const done = t.status === "done";
+  const overdue = !done && t.due_date && t.due_date < today;
+  return (
+    <li className="flex items-start gap-3 px-4 py-3 text-sm">
+      <form action={toggleTask}>
+        <input type="hidden" name="id" value={t.id} />
+        <input type="hidden" name="company_id" value={companyId} />
+        <input type="hidden" name="done" value={done ? "0" : "1"} />
+        <button
+          className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded border ${done ? "border-accent bg-accent text-white" : "border-stone-300 hover:border-accent"}`}
+          title={done ? "Genåbn" : "Markér som udført"}
+          aria-label={done ? "Genåbn" : "Markér som udført"}
+        >
+          {done ? <Check size={13} /> : null}
+        </button>
+      </form>
+      <div className="min-w-0 flex-1">
+        <div className={done ? "text-stone-400 line-through" : ""}>{t.title}</div>
+        <div className="mt-0.5 flex gap-2 text-xs">
+          <span className={overdue ? "font-medium text-red-700" : t.due_date ? "text-stone-500" : "text-amber-700"}>
+            {t.due_date ? formatDate(t.due_date) : "Ingen dato"}
+          </span>
+          {initials && <span className="text-stone-400">· {initials}</span>}
+        </div>
+      </div>
+      {done && <RotateCcw size={13} className="mt-1 text-stone-300" />}
+    </li>
+  );
+}
+
+function ContactForm({ companyId, contact }: { companyId: string; contact?: Contact }) {
+  return (
+    <form action={saveContact} className="mt-3 grid gap-2 sm:grid-cols-2">
+      <input type="hidden" name="company_id" value={companyId} />
+      {contact && <input type="hidden" name="id" value={contact.id} />}
+      <input name="name" required defaultValue={contact?.name} className="input" placeholder="Navn" />
+      <input name="title" defaultValue={contact?.title ?? ""} className="input" placeholder="Titel" />
+      <input name="email" type="email" defaultValue={contact?.email ?? ""} className="input" placeholder="E-mail" />
+      <input name="phone" type="tel" defaultValue={contact?.phone ?? ""} className="input" placeholder="Telefon" />
+      <input name="linkedin_url" defaultValue={contact?.linkedin_url ?? ""} className="input sm:col-span-2" placeholder="LinkedIn-URL" />
+      <div>
+        <button className="btn-primary">{contact ? "Gem person" : "Tilføj person"}</button>
+      </div>
+    </form>
+  );
+}
