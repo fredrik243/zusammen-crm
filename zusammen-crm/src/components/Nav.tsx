@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, KanbanSquare, Upload, Settings, LogOut } from "lucide-react";
+import { Building2, KanbanSquare, ListTodo, Upload, Settings, LogOut } from "lucide-react";
 
 const ITEMS = [
   { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
   { href: "/virksomheder", label: "Kontakter", icon: Building2 },
+  { href: "/opgaver", label: "Opgaver", icon: ListTodo },
   { href: "/import", label: "Import", icon: Upload },
   { href: "/indstillinger", label: "Indstillinger", icon: Settings },
 ];

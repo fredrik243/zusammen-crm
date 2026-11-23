@@ -23,6 +23,7 @@ import type { Stage } from "@/lib/data";
 import { fold } from "@/lib/import/parse";
 import { formatDate } from "@/lib/labels";
 import { moveDeal } from "./actions";
+import { ActivityMenu } from "@/components/ActivityMenu";
 
 export type BoardDeal = {
   id: string;
@@ -365,9 +366,16 @@ function Card({
           </span>
         </div>
       )}
-      {unplanned && (
-        <div className="mt-2 inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800">
-          <CircleAlert size={12} /> Intet planlagt
+      {(unplanned || !lifted) && (
+        <div className="mt-2 flex items-center justify-between gap-2">
+          {unplanned ? (
+            <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+              <CircleAlert size={12} /> Intet planlagt
+            </span>
+          ) : (
+            <span />
+          )}
+          {!lifted && <ActivityMenu companyId={d.companyId} dealId={d.id} companyName={d.companyName} />}
         </div>
       )}
     </article>

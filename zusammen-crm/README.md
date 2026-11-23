@@ -2,7 +2,7 @@
 
 Et let CRM-system for Zusammen med kontaktbank, pipeline, opgaver og statistik. Det er bygget til to brugere, og alle data ligger i EU.
 
-**Status:** Fase 1 og 2 er færdige. De indeholder login, import, kontaktbank og pipeline med drag-and-drop.
+**Status:** Fase 1–3 er færdige. De indeholder login, import, kontaktbank, pipeline med drag-and-drop, aktiviteter og opgaver.
 
 Guiden er skrevet til en, der ikke er udvikler. Første gang tager den cirka 30–45 minutter. Den bagefter er der intet at vedligeholde.
 
@@ -99,7 +99,7 @@ Fremover opdateres siden automatisk, hver gang ny kode lægges på GitHub.
 Hver fase består af to dele:
 
 1. **En ny SQL-fil** i mappen `supabase/` (fx `02_fase2.sql`). Åbn den, kopiér alt indhold ind i **Supabase → SQL Editor → New query** og klik **Run**. Vælg *Run and enable RLS*, hvis Supabase spørger.
-2. **Ny kode.** Gå til jeres repository på github.com, og vælg **Add file → Upload files**. Træk mapperne `src` og `supabase` samt filerne `README.md`, `package.json` og `package-lock.json` ind, og klik **Commit changes**. Vercel opdaterer siden selv efter et par minutter.
+2. **Ny kode.** Gå til jeres repository på github.com, og åbn **undermappen `zusammen-crm`**. Det er den, Vercel bygger fra, og øverst skal der stå `zusammen-crm / zusammen-crm`. Vælg derefter **Add file → Upload files**. Træk mapperne `src` og `supabase` samt filerne `README.md`, `package.json` og `package-lock.json` ind, og klik **Commit changes**. Vercel opdaterer siden selv efter et par minutter.
 
 Kør SQL-filen først, så den nye kode har det, den skal bruge, når den går i luften.
 
@@ -145,6 +145,6 @@ npm run preview:import -- sti/til/bruttoliste.csv   # vis fortolkning i terminal
 
 1. ✅ Datamodel, login, import og kontaktbank
 2. ✅ Pipeline med drag-and-drop
-3. Aktiviteter og opgaver
+3. ✅ Aktiviteter og opgaver
 4. Produkter, omsætning og statistik
 5. Budget

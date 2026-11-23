@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft, Ban, Globe, Mail, Phone, Link2, Pencil, Plus, Trash2, Check, RotateCcw,
+  ArrowLeft, Ban, Globe, Mail, Phone, Link2, Pencil, Plus, Trash2,
 } from "lucide-react";
 import { getLookups, getSession, type Activity, type Company, type Contact, type Deal, type Task } from "@/lib/data";
 import { CompanyForm } from "@/components/CompanyForm";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { StageBadge, Initials } from "@/components/Badges";
 import { ACTIVITY_LABELS, formatDate, todayISO } from "@/lib/labels";
-import { addTask, deleteCompany, deleteContact, saveContact, toggleTask, updateCompany, updateDeal } from "../actions";
+import { deleteCompany, deleteContact, saveContact, updateCompany, updateDeal } from "../actions";
+import { deleteActivity } from "@/lib/actions";
+import { TaskList, NewTaskForm, type TaskItem } from "@/components/TaskList";
+import { ActivityQuickLog } from "@/components/ActivityQuickLog";
 
 export default async function CompanyPage({
   params,
@@ -42,6 +45,8 @@ export default async function CompanyPage({
   const doneTasks = ((tasks ?? []) as Task[]).filter((t) => t.status === "done");
   const people = (contacts ?? []) as Contact[];
   const contactById = new Map(people.map((p) => [p.id, p]));
+  const memberLite = members.map((m) => ({ id: m.id, name: m.name, initials: m.initials }));
+  const toItem = (t: Task): TaskItem => ({ ...t, company_name: c.name });
 
   if (rediger) {
     return (
@@ -255,54 +260,37 @@ export default async function CompanyPage({
           {/* Opgaver */}
           <section className="card">
             <h2 className="border-b border-stone-100 px-4 py-3 text-sm font-semibold">Opgaver</h2>
-            <ul className="divide-y divide-stone-100">
-              {openTasks.map((t) => (
-                <TaskRow key={t.id} t={t} companyId={c.id} today={today} initials={memberById.get(t.assignee_id ?? "")?.initials} />
-              ))}
-              {openTasks.length === 0 && !c.do_not_contact && (
-                <li className="px-4 py-3 text-sm text-amber-800">Intet planlagt næste skridt.</li>
-              )}
-            </ul>
+            <TaskList
+              tasks={openTasks.map(toItem)}
+              members={memberLite}
+              today={today}
+              emptyText={c.do_not_contact ? undefined : "Intet planlagt næste skridt."}
+            />
             <details className="border-t border-stone-100 px-4 py-3">
               <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-medium text-accent">
                 <Plus size={15} /> Ny opgave
               </summary>
-              <form action={addTask} className="mt-3 space-y-2">
-                <input type="hidden" name="company_id" value={c.id} />
-                <input type="hidden" name="deal_id" value={(deals ?? [])[0]?.id ?? ""} />
-                <input name="title" required className="input" placeholder="Hvad skal der ske?" />
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="date" name="due_date" className="input" />
-                  <select name="assignee_id" defaultValue={c.owner_id ?? me?.id ?? ""} className="input">
-                    <option value="">Ingen</option>
-                    {members.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button className="btn-primary">Tilføj opgave</button>
-              </form>
+              <div className="mt-3">
+                <NewTaskForm members={memberLite} defaultAssignee={c.owner_id ?? me?.id ?? null} companyId={c.id} today={today} />
+              </div>
             </details>
             {doneTasks.length > 0 && (
-              <details className="border-t border-stone-100 px-4 py-3">
-                <summary className="cursor-pointer list-none text-xs text-stone-500">{doneTasks.length} udførte opgaver</summary>
-                <ul className="mt-2 divide-y divide-stone-100">
-                  {doneTasks.map((t) => (
-                    <TaskRow key={t.id} t={t} companyId={c.id} today={today} initials={memberById.get(t.assignee_id ?? "")?.initials} />
-                  ))}
-                </ul>
+              <details className="border-t border-stone-100">
+                <summary className="cursor-pointer list-none px-4 py-3 text-xs text-stone-500">
+                  {doneTasks.length} udførte opgaver
+                </summary>
+                <TaskList tasks={doneTasks.map(toItem)} members={memberLite} today={today} />
               </details>
             )}
           </section>
 
           {/* Tidslinje */}
           <section className="card">
-            <h2 className="border-b border-stone-100 px-4 py-3 text-sm font-semibold">Tidslinje</h2>
-            <ol className="space-y-0 px-4 py-3">
+            <h2 className="border-b border-stone-100 px-4 py-3 text-sm font-semibold">Aktiviteter</h2>
+            <ActivityQuickLog companyId={c.id} dealId={(deals ?? [])[0]?.id ?? null} />
+            <ol className="space-y-0 border-t border-stone-100 px-4 py-3">
               {((activities ?? []) as Activity[]).map((a) => (
-                <li key={a.id} className="relative border-l border-stone-200 pb-4 pl-4 last:pb-0">
+                <li key={a.id} className="relative border-l border-stone-200 pb-4 pl-4 pr-6 last:pb-0">
                   <span className="absolute -left-[4.5px] top-1.5 h-2 w-2 rounded-full bg-accent" />
                   <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
                     <span className="font-medium">
@@ -321,6 +309,16 @@ export default async function CompanyPage({
                     )}
                   </div>
                   {a.note && <p className="mt-0.5 text-xs text-stone-500">{a.note}</p>}
+                  {a.source === "manual" && (
+                    <form action={deleteActivity.bind(null, a.id, c.id)} className="absolute right-0 top-0">
+                      <ConfirmButton
+                        message={`Slet "${ACTIVITY_LABELS[a.type]}" fra tidslinjen?`}
+                        className="p-1 text-stone-300 hover:text-red-700"
+                      >
+                        <Trash2 size={12} />
+                      </ConfirmButton>
+                    </form>
+                  )}
                   {a.source.startsWith("import") && (
                     <span className="mt-1 inline-block rounded bg-stone-100 px-1.5 text-[10px] text-stone-500">
                       {a.source === "import_status" ? "udledt af status ved import" : "fra import"}
@@ -334,37 +332,6 @@ export default async function CompanyPage({
         </div>
       </div>
     </div>
-  );
-}
-
-function TaskRow({ t, companyId, today, initials }: { t: Task; companyId: string; today: string; initials?: string }) {
-  const done = t.status === "done";
-  const overdue = !done && t.due_date && t.due_date < today;
-  return (
-    <li className="flex items-start gap-3 px-4 py-3 text-sm">
-      <form action={toggleTask}>
-        <input type="hidden" name="id" value={t.id} />
-        <input type="hidden" name="company_id" value={companyId} />
-        <input type="hidden" name="done" value={done ? "0" : "1"} />
-        <button
-          className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded border ${done ? "border-accent bg-accent text-white" : "border-stone-300 hover:border-accent"}`}
-          title={done ? "Genåbn" : "Markér som udført"}
-          aria-label={done ? "Genåbn" : "Markér som udført"}
-        >
-          {done ? <Check size={13} /> : null}
-        </button>
-      </form>
-      <div className="min-w-0 flex-1">
-        <div className={done ? "text-stone-400 line-through" : ""}>{t.title}</div>
-        <div className="mt-0.5 flex gap-2 text-xs">
-          <span className={overdue ? "font-medium text-red-700" : t.due_date ? "text-stone-500" : "text-amber-700"}>
-            {t.due_date ? formatDate(t.due_date) : "Ingen dato"}
-          </span>
-          {initials && <span className="text-stone-400">· {initials}</span>}
-        </div>
-      </div>
-      {done && <RotateCcw size={13} className="mt-1 text-stone-300" />}
-    </li>
   );
 }
 

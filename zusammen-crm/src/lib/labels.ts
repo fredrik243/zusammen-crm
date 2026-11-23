@@ -38,3 +38,20 @@ export function formatDate(d: string | null | undefined, withYear = true): strin
 export function todayISO(): string {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Copenhagen" });
 }
+
+/** Aktiviteter, man selv kan registrere (fase ændret logges automatisk) */
+export const QUICK_TYPES: ActivityType[] = [
+  "mail_sent",
+  "reminder_sent",
+  "linkedin_message",
+  "reply_received",
+  "meeting_booked",
+  "meeting_held",
+  "rejection",
+];
+
+export function addDays(iso: string, days: number): string {
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}

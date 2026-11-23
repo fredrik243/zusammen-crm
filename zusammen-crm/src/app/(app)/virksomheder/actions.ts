@@ -87,33 +87,6 @@ export async function deleteContact(f: FormData) {
   revalidatePath(`/virksomheder/${String(f.get("company_id"))}`);
 }
 
-export async function addTask(f: FormData) {
-  const supabase = await createClient();
-  const company_id = String(f.get("company_id"));
-  const title = str(f, "title");
-  if (!title) return;
-  await supabase.from("tasks").insert({
-    title,
-    due_date: str(f, "due_date"),
-    assignee_id: str(f, "assignee_id"),
-    company_id,
-    deal_id: str(f, "deal_id"),
-  });
-  revalidatePath(`/virksomheder/${company_id}`);
-  revalidatePath("/virksomheder");
-}
-
-export async function toggleTask(f: FormData) {
-  const supabase = await createClient();
-  const done = f.get("done") === "1";
-  await supabase
-    .from("tasks")
-    .update({ status: done ? "done" : "open", completed_at: done ? new Date().toISOString() : null })
-    .eq("id", String(f.get("id")));
-  revalidatePath(`/virksomheder/${String(f.get("company_id"))}`);
-  revalidatePath("/virksomheder");
-}
-
 export async function updateDeal(f: FormData) {
   const supabase = await createClient();
   const id = String(f.get("id"));
