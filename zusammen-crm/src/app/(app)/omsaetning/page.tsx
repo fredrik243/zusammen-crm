@@ -4,6 +4,7 @@ import { presets, resolvePeriod } from "@/lib/period";
 import { computeRevenue, type RevDeal, type RevLine, type Row } from "@/lib/revenue";
 import { kr } from "@/lib/numbers";
 import { BarChart, BreakdownTable, PeriodFilter, StatTile } from "@/components/Charts";
+import { RevenueTabs } from "@/components/RevenueTabs";
 
 export default async function RevenuePage({
   searchParams,
@@ -55,6 +56,7 @@ export default async function RevenuePage({
 
   return (
     <div className="space-y-5">
+      <RevenueTabs active="omsaetning" />
       <div>
         <h1 className="text-xl font-semibold">Omsætning</h1>
         <p className="text-sm text-stone-500">

@@ -14,7 +14,8 @@ const ITEMS = [
 
 export function Nav({ initials }: { initials: string }) {
   const path = usePathname();
-  const active = (href: string) => path === href || path.startsWith(href + "/");
+  const active = (href: string) =>
+    path === href || path.startsWith(href + "/") || (href === "/omsaetning" && path.startsWith("/budget"));
 
   return (
     <>

@@ -2,7 +2,7 @@
 
 Et let CRM-system for Zusammen med kontaktbank, pipeline, opgaver og statistik. Det er bygget til to brugere, og alle data ligger i EU.
 
-**Status:** Fase 1–4 er færdige. De indeholder login, import, kontaktbank, pipeline med drag-and-drop, aktiviteter, opgaver, produkter, omsætning og statistik.
+**Status:** Alle fem faser er færdige: login, import, kontaktbank, pipeline med drag-and-drop, aktiviteter, opgaver, produkter, omsætning, statistik og budget.
 
 Guiden er skrevet til en, der ikke er udvikler. Første gang tager den cirka 30–45 minutter. Den bagefter er der intet at vedligeholde.
 
@@ -105,6 +105,12 @@ Kør SQL-filen først, så den nye kode har det, den skal bruge, når den går i
 
 ---
 
+## Backup
+
+Supabases gratis plan tager ikke backup. Tryk **Eksportér CSV** i kontaktbanken en gang imellem, eller opgradér til Supabase Pro, som tager backup hver dag.
+
+---
+
 ## Miljøvariabler
 
 | Navn | Hvad | Hvor findes den |
@@ -147,4 +153,4 @@ npm run preview:import -- sti/til/bruttoliste.csv   # vis fortolkning i terminal
 2. ✅ Pipeline med drag-and-drop
 3. ✅ Aktiviteter og opgaver
 4. ✅ Produkter, omsætning og statistik
-5. Budget
+5. ✅ Budget

@@ -49,13 +49,14 @@ export function BarChart({
 }: {
   integer?: boolean;
   title: string;
-  data: { label: string; value: number; hint?: string }[];
+  data: { label: string; value: number; hint?: string; target?: number }[];
   format?: (n: number) => string;
   goal?: number;
   goalLabel?: string;
   height?: number;
 }) {
-  const max = Math.max(1, ...data.map((d) => d.value), goal ?? 0);
+  const max = Math.max(1, ...data.map((d) => Math.max(d.value, d.target ?? 0)), goal ?? 0);
+  const hasTargets = data.some((d) => d.target != null && d.target > 0);
   const step = integer ? Math.max(1, niceStep(max)) : niceStep(max);
   const top = Math.ceil(max / step) * step;
   const ticks = Array.from({ length: Math.round(top / step) + 1 }, (_, i) => i * step);
@@ -66,7 +67,7 @@ export function BarChart({
     <figure className="card p-4">
       <figcaption className="mb-3 flex items-baseline justify-between gap-2">
         <span className="text-sm font-semibold">{title}</span>
-        {goal != null && (
+        {(goal != null || hasTargets) && (
           <span className="flex items-center gap-1.5 text-xs text-stone-500">
             <span className="inline-block w-4 border-t-2 border-dashed border-stone-500" /> {goalLabel ?? "Mål"}
           </span>
@@ -100,8 +101,17 @@ export function BarChart({
                     className="w-full max-w-10 rounded-t bg-accent transition-opacity group-hover:opacity-80"
                     style={{ height: `${(d.value / top) * 100}%`, minHeight: d.value > 0 ? 2 : 0 }}
                   />
+                  {d.target != null && d.target > 0 && (
+                    <div
+                      className="pointer-events-none absolute left-1/2 z-10 w-full max-w-12 -translate-x-1/2 border-t-2 border-dashed border-stone-500"
+                      style={{ bottom: `${(d.target / top) * 100}%` }}
+                    />
+                  )}
                   <div className="pointer-events-none absolute bottom-full z-20 mb-1 hidden whitespace-nowrap rounded bg-stone-900 px-2 py-1 text-xs text-white shadow group-hover:block">
                     <div className="font-medium tabular-nums">{format(d.value)}</div>
+                    {d.target != null && d.target > 0 && (
+                      <div className="text-stone-300 tabular-nums">Mål: {format(d.target)}</div>
+                    )}
                     <div className="text-stone-300">{d.hint ?? d.label}</div>
                   </div>
                 </div>
