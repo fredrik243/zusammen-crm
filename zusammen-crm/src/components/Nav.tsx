@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, KanbanSquare, ListTodo, Upload, Settings, LogOut } from "lucide-react";
+import { Building2, ChartColumn, KanbanSquare, ListTodo, Settings, LogOut, Wallet } from "lucide-react";
 
 const ITEMS = [
   { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
   { href: "/virksomheder", label: "Kontakter", icon: Building2 },
   { href: "/opgaver", label: "Opgaver", icon: ListTodo },
-  { href: "/import", label: "Import", icon: Upload },
-  { href: "/indstillinger", label: "Indstillinger", icon: Settings },
+  { href: "/omsaetning", label: "Omsætning", icon: Wallet },
+  { href: "/statistik", label: "Statistik", icon: ChartColumn },
 ];
 
 export function Nav({ initials }: { initials: string }) {
@@ -36,6 +36,14 @@ export function Nav({ initials }: { initials: string }) {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <Link
+              href="/indstillinger"
+              className={`btn-ghost px-2 ${active("/indstillinger") || active("/import") ? "text-accent" : ""}`}
+              title="Indstillinger"
+              aria-label="Indstillinger"
+            >
+              <Settings size={17} />
+            </Link>
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-medium text-white">
               {initials}
             </span>

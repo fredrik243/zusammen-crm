@@ -1,18 +1,57 @@
-import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowDown, ArrowUp, ChevronRight, Package, Trash2, Upload } from "lucide-react";
 import { getLookups, getSession } from "@/lib/data";
 import { ConfirmButton } from "@/components/ConfirmButton";
-import { deleteCategory, deleteStage, moveStage, saveCategory, saveMember, saveStage } from "./actions";
+import { deleteCategory, deleteStage, moveStage, saveCategory, saveMember, saveStage, saveWeeklyGoal } from "./actions";
 
 export default async function SettingsPage() {
   const { me, supabase } = await getSession();
   const { categories, members, stages } = await getLookups();
-  const { data: dealStages } = await supabase.from("deals").select("stage_id");
+  const [{ data: dealStages }, { data: settings }] = await Promise.all([
+    supabase.from("deals").select("stage_id"),
+    supabase.from("app_settings").select("weekly_meeting_goal").eq("id", 1).maybeSingle(),
+  ]);
   const dealCount = new Map<string, number>();
   for (const d of dealStages ?? []) dealCount.set(d.stage_id, (dealCount.get(d.stage_id) ?? 0) + 1);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="text-xl font-semibold">Indstillinger</h1>
+
+      <nav className="card divide-y divide-stone-100">
+        <Link href="/indstillinger/produkter" className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-stone-50">
+          <Package size={16} className="text-stone-500" />
+          <span className="flex-1">
+            <span className="font-medium">Produkter</span>
+            <span className="block text-xs text-stone-500">Katalog med priser, som kan lægges på deals</span>
+          </span>
+          <ChevronRight size={16} className="text-stone-400" />
+        </Link>
+        <Link href="/import" className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-stone-50">
+          <Upload size={16} className="text-stone-500" />
+          <span className="flex-1">
+            <span className="font-medium">Import</span>
+            <span className="block text-xs text-stone-500">Indlæs virksomheder fra en CSV-fil</span>
+          </span>
+          <ChevronRight size={16} className="text-stone-400" />
+        </Link>
+      </nav>
+
+      <section className="card">
+        <h2 className="border-b border-stone-100 px-4 py-3 text-sm font-semibold">Ugemål</h2>
+        <form action={saveWeeklyGoal} className="flex flex-wrap items-center gap-2 px-4 py-3 text-sm">
+          <label htmlFor="goal">Møder booket pr. uge:</label>
+          <input
+            id="goal"
+            name="weekly_meeting_goal"
+            defaultValue={settings?.weekly_meeting_goal ?? 2}
+            inputMode="numeric"
+            className="input w-20"
+          />
+          <button className="btn-secondary">Gem</button>
+          <span className="text-xs text-stone-500">Vises som mållinje på statistiksiden.</span>
+        </form>
+      </section>
 
       <section className="card">
         <h2 className="border-b border-stone-100 px-4 py-3 text-sm font-semibold">Team</h2>
@@ -135,7 +174,6 @@ export default async function SettingsPage() {
         </form>
       </section>
 
-      <p className="text-xs text-stone-400">Ugemålet for møder kan indstilles her fra fase 4.</p>
     </div>
   );
 }

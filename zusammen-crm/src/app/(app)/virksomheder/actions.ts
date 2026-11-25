@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { parseNumber } from "@/lib/numbers";
 
 const str = (f: FormData, k: string) => {
   const v = String(f.get(k) ?? "").trim();
@@ -91,22 +92,14 @@ export async function updateDeal(f: FormData) {
   const supabase = await createClient();
   const id = String(f.get("id"));
   const company_id = String(f.get("company_id"));
-  const num = (k: string) => {
-    const v = str(f, k);
-    if (v == null) return null;
-    const t = v.replace(/\s|kr\.?/gi, "");
-    // Dansk format: "15.000" eller "15.000,50"; ellers almindeligt tal som "15000.5"
-    const n = Number(
-      t.includes(",") || /^\d{1,3}(\.\d{3})+$/.test(t) ? t.replace(/\./g, "").replace(",", ".") : t,
-    );
-    return Number.isFinite(n) ? n : null;
-  };
+  const num = (k: string) => parseNumber(str(f, k));
   const probability = num("probability");
   await supabase
     .from("deals")
     .update({
       title: str(f, "title") ?? undefined,
-      value: num("value"),
+      // Feltet sendes ikke, når værdien beregnes fra produktlinjer
+      ...(f.has("value") ? { value: num("value") } : {}),
       probability: probability == null ? null : Math.max(0, Math.min(100, Math.round(probability))),
       expected_close_date: str(f, "expected_close_date"),
       owner_id: str(f, "owner_id"),
@@ -125,5 +118,48 @@ export async function updateDeal(f: FormData) {
     await supabase.rpc("move_deal", { p_deal: id, p_stage: stageId, p_position: (last?.[0]?.position ?? 0) + 1 });
   }
   revalidatePath(`/virksomheder/${company_id}`);
+  revalidatePath("/pipeline");
+}
+
+// ---------- Produktlinjer på deals ----------
+export async function addDealLine(f: FormData) {
+  const supabase = await createClient();
+  const deal_id = String(f.get("deal_id"));
+  const product_id = str(f, "product_id");
+  if (!product_id) return;
+  let unit_price = parseNumber(str(f, "unit_price"));
+  if (unit_price == null) {
+    const { data } = await supabase.from("products").select("default_price").eq("id", product_id).single();
+    unit_price = Number(data?.default_price ?? 0);
+  }
+  await supabase.from("deal_products").insert({
+    deal_id,
+    product_id,
+    quantity: parseNumber(str(f, "quantity")) ?? 1,
+    unit_price,
+    discount_pct: Math.max(0, Math.min(100, parseNumber(str(f, "discount_pct")) ?? 0)),
+  });
+  revalidatePath(`/virksomheder/${String(f.get("company_id"))}`);
+  revalidatePath("/pipeline");
+}
+
+export async function updateDealLine(f: FormData) {
+  const supabase = await createClient();
+  await supabase
+    .from("deal_products")
+    .update({
+      quantity: parseNumber(str(f, "quantity")) ?? 1,
+      unit_price: parseNumber(str(f, "unit_price")) ?? 0,
+      discount_pct: Math.max(0, Math.min(100, parseNumber(str(f, "discount_pct")) ?? 0)),
+    })
+    .eq("id", String(f.get("id")));
+  revalidatePath(`/virksomheder/${String(f.get("company_id"))}`);
+  revalidatePath("/pipeline");
+}
+
+export async function deleteDealLine(f: FormData) {
+  const supabase = await createClient();
+  await supabase.from("deal_products").delete().eq("id", String(f.get("id")));
+  revalidatePath(`/virksomheder/${String(f.get("company_id"))}`);
   revalidatePath("/pipeline");
 }

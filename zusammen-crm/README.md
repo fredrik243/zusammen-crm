@@ -2,7 +2,7 @@
 
 Et let CRM-system for Zusammen med kontaktbank, pipeline, opgaver og statistik. Det er bygget til to brugere, og alle data ligger i EU.
 
-**Status:** Fase 1–3 er færdige. De indeholder login, import, kontaktbank, pipeline med drag-and-drop, aktiviteter og opgaver.
+**Status:** Fase 1–4 er færdige. De indeholder login, import, kontaktbank, pipeline med drag-and-drop, aktiviteter, opgaver, produkter, omsætning og statistik.
 
 Guiden er skrevet til en, der ikke er udvikler. Første gang tager den cirka 30–45 minutter. Den bagefter er der intet at vedligeholde.
 
@@ -89,7 +89,7 @@ Fremover opdateres siden automatisk, hver gang ny kode lægges på GitHub.
 1. Åbn jeres Vercel-adresse. Skriv din e-mail og klik **Send login-link**.
 2. Åbn linket i mailen **på samme enhed og i samme browser**.
 3. Første gang spørger appen **"Hvem er du?"**. Klik på dit navn. Det sker kun én gang.
-4. Gå til **Import**, og vælg `bruttoliste.csv`. Du ser nu, hvordan hver række bliver fortolket. Fanen **Kræver opmærksomhed** viser de rækker, der bør tjekkes. Ret det, der skal rettes, og klik **Importér**.
+4. Gå til **Indstillinger → Import**, og vælg `bruttoliste.csv`. Du ser nu, hvordan hver række bliver fortolket. Fanen **Kræver opmærksomhed** viser de rækker, der bør tjekkes. Ret det, der skal rettes, og klik **Importér**.
    Importen gemmer enten alt eller intet. Hvis den køres igen, springer den virksomheder over, der allerede findes.
 
 ---
@@ -146,5 +146,5 @@ npm run preview:import -- sti/til/bruttoliste.csv   # vis fortolkning i terminal
 1. ✅ Datamodel, login, import og kontaktbank
 2. ✅ Pipeline med drag-and-drop
 3. ✅ Aktiviteter og opgaver
-4. Produkter, omsætning og statistik
+4. ✅ Produkter, omsætning og statistik
 5. Budget

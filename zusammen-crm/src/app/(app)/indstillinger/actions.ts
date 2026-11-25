@@ -88,3 +88,12 @@ export async function deleteStage(f: FormData) {
   await supabase.from("stages").delete().eq("id", id);
   revalidatePath("/", "layout");
 }
+
+export async function saveWeeklyGoal(f: FormData) {
+  const supabase = await createClient();
+  const n = Number(String(f.get("weekly_meeting_goal") ?? "").replace(",", "."));
+  if (!Number.isFinite(n) || n < 0) return;
+  await supabase.from("app_settings").update({ weekly_meeting_goal: Math.round(n) }).eq("id", 1);
+  revalidatePath("/indstillinger");
+  revalidatePath("/statistik");
+}

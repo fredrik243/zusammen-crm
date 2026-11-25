@@ -8,7 +8,7 @@ import { CompanyForm } from "@/components/CompanyForm";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { StageBadge, Initials } from "@/components/Badges";
 import { ACTIVITY_LABELS, formatDate, todayISO } from "@/lib/labels";
-import { deleteCompany, deleteContact, saveContact, updateCompany, updateDeal } from "../actions";
+import { addDealLine, deleteCompany, deleteContact, deleteDealLine, saveContact, updateCompany, updateDealLine, updateDeal } from "../actions";
 import { deleteActivity } from "@/lib/actions";
 import { TaskList, NewTaskForm, type TaskItem } from "@/components/TaskList";
 import { ActivityQuickLog } from "@/components/ActivityQuickLog";
@@ -34,6 +34,22 @@ export default async function CompanyPage({
       supabase.from("activities").select("*").eq("company_id", id).order("occurred_at", { ascending: false, nullsFirst: false }),
     ]);
   if (!company) notFound();
+  const dealIds = ((deals ?? []) as Deal[]).map((d) => d.id);
+  const [{ data: productRows }, { data: lineRows }] = await Promise.all([
+    supabase.from("products").select("id,name,default_price,unit,active").order("name"),
+    dealIds.length
+      ? supabase.from("deal_products").select("*, product:products(name,unit)").in("deal_id", dealIds).order("created_at")
+      : Promise.resolve({ data: [] as unknown[] }),
+  ]);
+  const products = (productRows ?? []) as { id: string; name: string; default_price: number; unit: string; active: boolean }[];
+  const lines = (lineRows ?? []) as {
+    id: string;
+    deal_id: string;
+    quantity: number;
+    unit_price: number;
+    discount_pct: number;
+    product: { name: string; unit: string } | null;
+  }[];
   const c = company as Company;
 
   const memberById = new Map(members.map((m) => [m.id, m]));
@@ -227,7 +243,15 @@ export default async function CompanyPage({
                         </label>
                         <label>
                           <span className="label">Dealværdi (kr.)</span>
-                          <input name="value" inputMode="decimal" defaultValue={d.value ?? ""} className="input" />
+                          {lines.some((l) => l.deal_id === d.id) ? (
+                            <input
+                              disabled
+                              value={`${Number(d.value ?? 0).toLocaleString("da-DK")} (fra produkter)`}
+                              className="input bg-stone-50 text-stone-500"
+                            />
+                          ) : (
+                            <input name="value" inputMode="decimal" defaultValue={d.value ?? ""} className="input" />
+                          )}
                         </label>
                         <label>
                           <span className="label">Sandsynlighed (%)</span>
@@ -247,6 +271,12 @@ export default async function CompanyPage({
                           <button className="btn-primary">Gem deal</button>
                         </div>
                       </form>
+                      <DealLines
+                        dealId={d.id}
+                        companyId={c.id}
+                        lines={lines.filter((l) => l.deal_id === d.id)}
+                        products={products.filter((p) => p.active)}
+                      />
                     </details>
                   </li>
                 );
@@ -349,5 +379,73 @@ function ContactForm({ companyId, contact }: { companyId: string; contact?: Cont
         <button className="btn-primary">{contact ? "Gem person" : "Tilføj person"}</button>
       </div>
     </form>
+  );
+}
+
+function DealLines({
+  dealId,
+  companyId,
+  lines,
+  products,
+}: {
+  dealId: string;
+  companyId: string;
+  lines: { id: string; quantity: number; unit_price: number; discount_pct: number; product: { name: string; unit: string } | null }[];
+  products: { id: string; name: string; default_price: number; unit: string }[];
+}) {
+  const fmt = (n: number) => Number(n).toLocaleString("da-DK");
+  const total = (l: (typeof lines)[number]) => Number(l.quantity) * Number(l.unit_price) * (1 - Number(l.discount_pct) / 100);
+  return (
+    <div className="mt-4 border-t border-stone-100 pt-3">
+      <div className="label">Produkter</div>
+      {lines.length > 0 && (
+        <ul className="mb-2 space-y-2">
+          {lines.map((l) => (
+            <li key={l.id}>
+              <form action={updateDealLine} className="grid grid-cols-[1fr_auto] items-center gap-2 sm:grid-cols-[1fr_4.5rem_6.5rem_4.5rem_6rem_auto_auto]">
+                <input type="hidden" name="id" value={l.id} />
+                <input type="hidden" name="company_id" value={companyId} />
+                <span className="truncate font-medium">{l.product?.name ?? "Slettet produkt"}</span>
+                <input name="quantity" defaultValue={fmt(l.quantity)} inputMode="decimal" className="input max-sm:col-start-1" aria-label="Antal" title={`Antal (${l.product?.unit ?? ""})`} />
+                <input name="unit_price" defaultValue={fmt(l.unit_price)} inputMode="decimal" className="input max-sm:col-start-1" aria-label="Pris pr. enhed" title="Pris pr. enhed (kr.)" />
+                <input name="discount_pct" defaultValue={fmt(l.discount_pct)} inputMode="decimal" className="input max-sm:col-start-1" aria-label="Rabat i procent" title="Rabat (%)" />
+                <span className="text-right text-stone-700 max-sm:col-start-1">{Math.round(total(l)).toLocaleString("da-DK")} kr.</span>
+                <button className="btn-secondary px-2 max-sm:col-start-1">Gem</button>
+                <button formAction={deleteDealLine} className="btn-ghost px-2 text-stone-400 hover:text-red-700" aria-label="Fjern produkt">
+                  <Trash2 size={14} />
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      )}
+      {products.length === 0 ? (
+        <p className="text-xs text-stone-500">
+          Opret produkter under <Link href="/indstillinger/produkter" className="text-accent underline">Indstillinger → Produkter</Link> for at lægge dem på dealen.
+        </p>
+      ) : (
+        <form action={addDealLine} className="grid gap-2 sm:grid-cols-[1fr_4.5rem_6.5rem_4.5rem_auto]">
+          <input type="hidden" name="deal_id" value={dealId} />
+          <input type="hidden" name="company_id" value={companyId} />
+          <select name="product_id" className="input" aria-label="Produkt" required defaultValue="">
+            <option value="" disabled>
+              Vælg produkt…
+            </option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({fmt(p.default_price)} kr./{p.unit})
+              </option>
+            ))}
+          </select>
+          <input name="quantity" defaultValue="1" inputMode="decimal" className="input" aria-label="Antal" title="Antal" />
+          <input name="unit_price" placeholder="Standardpris" inputMode="decimal" className="input" aria-label="Pris pr. enhed" title="Tom = produktets standardpris" />
+          <input name="discount_pct" placeholder="Rabat %" inputMode="decimal" className="input" aria-label="Rabat i procent" />
+          <button className="btn-secondary">Tilføj</button>
+        </form>
+      )}
+      {lines.length > 0 && (
+        <p className="mt-2 text-xs text-stone-500">Dealværdien beregnes automatisk som summen af produkterne efter rabat.</p>
+      )}
+    </div>
   );
 }
